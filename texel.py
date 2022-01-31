@@ -2,23 +2,20 @@
 
 import math
 import curses
-import pandas as pd
+from functools import partial
 import numpy as np
 from numbers import Number
-from enum import Enum
+from enum import Enum, auto
 from argparse import ArgumentParser
-from itertools import count, combinations
+
+import utils
 
 
 class Action(Enum):
-    UP = 0
-    DOWN = 1
-    LEFT = 2
-    RIGHT = 3
-
-    def __init__(self, x):
-        self.isHorizontal = x > 1
-        self.isVertical = not self.isHorizontal
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
 
 
 ARROWKEYS = {
@@ -33,34 +30,16 @@ ARROWKEYS = {
 }
 
 
-class Reader:
-    def __init__(self, filename, csv_delimiter=","):
-        self.filename = filename
-        self.csv_delimiter = csv_delimiter
-        self.xl = self.read()
-
-    def read(self):
-        if self.filename.split(".")[-1] == "csv":
-            return self.read_csv()
-        else:
-            return self.read_excel()
-
-    def read_csv(self):
-        return pd.read_csv(self.filename, delimiter=self.csv_delimiter, header=None)
-
-    def read_excel(self):
-        return pd.read_excel(self.filename, sheet_name=None, header=None)
-
-
 class Grid:
-    def __init__(self, reader, scr):
-        self.reader = reader
+    def __init__(self, scr, sheets, precision, cellwidth):
         self.scr = scr
-        self.sheets = list(reader.xl.keys())
+        self.sheets = sheets
         self.sheetId = 0
-        self.precision = 2
-        self.fmtwidth = 10
+        self.sheetNames = list(self.sheets.keys())
+        self.precision = precision
+        self.fmtwidth = cellwidth
         self.cellwidth = self.fmtwidth + 1
+        self.actions = self.arrow_actions()
         self.sep = "|"
         self.init()
 
@@ -69,13 +48,12 @@ class Grid:
         self.y = 0
         self.screeny = 0
         self.screenx = 0
-        self.xl = self.reader.xl[self.sheets[self.sheetId]]
+        self.xl = self.sheets[self.sheetNames[self.sheetId]]
         self.arr = self.xl.to_numpy()
         self.heigth, self.width = self.xl.shape
         self.idxwidth = int(math.log10(self.heigth) + 2)
-        alphaIter = self.getAbcIter()
-        self.cols = [next(alphaIter) for _ in range(self.width)]
-        self.fmt = "{:>" + f"{self.fmtwidth}" + "}" + self.sep
+        self.cols = utils.get_alphas(self.width)
+        self.fmtstr = "{:>" + f"{self.fmtwidth}" + "}" + self.sep
         self.width_char = self.cellwidth * self.width + self.idxwidth
         self.draw()
 
@@ -86,44 +64,42 @@ class Grid:
         x = str(x)
         if len(x) > self.fmtwidth:
             x = x[: self.fmtwidth - 3] + "..."
-        return self.fmt.format(x)
+        return self.fmtstr.format(x)
 
-    def getAbcIter(self):
-        alpha = range(65, 91)
-        for i in count(1):
-            chars = combinations(alpha, i)
-            for ch in chars:
-                yield "".join(map(chr, ch))
+    def arrow_actions(self):
+        return {
+            Action.UP: partial(self.move_vertical, -1),
+            Action.DOWN: partial(self.move_vertical, 1),
+            Action.LEFT: partial(self.move_horizontal, -1),
+            Action.RIGHT: partial(self.move_horizontal, 1),
+        }
+
+    def move_horizontal(self, direction):
+        self.x = (self.x + direction) % self.width
+        if (self.x - self.screenx) >= self.scrwidth - 2:
+            self.screenx = self.x - self.scrwidth + 2
+        elif self.x < self.screenx:
+            self.screenx = self.x
+
+    def move_vertical(self, direction):
+        self.y = (self.y + direction) % self.heigth
+        if (self.y - self.screeny) >= self.scrheight - 3:
+            self.screeny = self.y - (self.scrheight - 3) + 1
+        elif self.y < self.screeny:
+            self.screeny = self.y
 
     def on_press(self, key):
         if key in ARROWKEYS:
-            action = ARROWKEYS[key]
-            if action == Action.UP:
-                self.y = (self.y - 1) % self.heigth
-            elif action == Action.DOWN:
-                self.y = (self.y + 1) % self.heigth
-            elif action == Action.LEFT:
-                self.x = (self.x - 1) % self.width
-            elif action == Action.RIGHT:
-                self.x = (self.x + 1) % self.width
-            if action.isHorizontal:
-                if (self.x - self.screenx) >= self.scrwidth - 2:
-                    self.screenx = self.x - self.scrwidth + 2
-                elif self.x < self.screenx:
-                    self.screenx = self.x
-            else:
-                if (self.y - self.screeny) >= self.scrheight - 3:
-                    self.screeny = self.y - (self.scrheight - 3) + 1
-                elif self.y < self.screeny:
-                    self.screeny = self.y
+            self.actions[ARROWKEYS[key]]()
             self.draw()
         else:
-            if key == ord("\t"):
-                self.sheetId = (self.sheetId + 1) % len(self.sheets)
-                self.init()
-            if key == 353:
-                self.sheetId = (self.sheetId - 1) % len(self.sheets)
-                self.init()
+            if len(self.sheetNames) > 1:
+                if key == ord("\t"):
+                    self.sheetId = (self.sheetId + 1) % len(self.sheetNames)
+                    self.init()
+                if key == 353:
+                    self.sheetId = (self.sheetId - 1) % len(self.sheetNames)
+                    self.init()
 
     def draw(self):
         self.scr.clear()
@@ -146,7 +122,7 @@ class Grid:
             curses.A_UNDERLINE | curses.A_BOLD | curses.color_pair(4),
         )
         w = 0
-        for i, sheet in enumerate(self.sheets):
+        for i, sheet in enumerate(self.sheetNames):
             if i == self.sheetId:
                 self.scr.addstr(
                     self.scrheight - 1,
@@ -194,12 +170,12 @@ class Grid:
                         )
 
 
-def main(scr, rd):
+def main(scr, sheets, args):
     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
     curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
     curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    grid = Grid(rd, scr)
+    grid = Grid(scr, sheets, args.precision, args.cellwidth)
     while True:
         key = scr.getch()
         if key == ord("q"):
@@ -214,13 +190,36 @@ if __name__ == "__main__":
         help="Spreadsheet path (csv, xls, xlsx, xlsm, xlsb, odf, ods or odt)",
         metavar="FILE",
     )
+    parser.add_argument(
+        "-d",
+        "--delimiter",
+        help="Delimiter for csv files",
+        metavar="DELIMITER",
+        default=None,
+    )
+    parser.add_argument(
+        "-c",
+        "--cellwidth",
+        help="Width of a cell",
+        metavar="CELLWIDTH",
+        type=int,
+        default=10,
+    )
+    parser.add_argument(
+        "-p",
+        "--precision",
+        help="Precision of floating point numbers",
+        metavar="PRECISION",
+        type=int,
+        default=2,
+    )
     try:
         args = parser.parse_args()
-        rd = Reader(args.file)
+        sheets = utils.read_spreadsheet(args.file, args.delimiter)
     except TypeError:
-        parser.print_help()
+        parser.print_usage()
         exit()
     except FileNotFoundError:
         print("Cannot find or open {}".format(args.file))
         exit()
-    curses.wrapper(main, rd)
+    curses.wrapper(main, sheets, args)
