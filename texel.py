@@ -18,6 +18,17 @@ class Action(Enum):
     RIGHT = auto()
 
 
+class Styles:
+    def __init__(self):
+        self.bordercolor = curses.color_pair(3)
+        self.sheets = curses.color_pair(2)
+        self.sheet_selection = curses.A_BOLD | curses.A_UNDERLINE | curses.color_pair(2)
+        self.header = curses.A_UNDERLINE | self.bordercolor
+        self.lineno = self.bordercolor
+        self.selection = curses.color_pair(1)
+        self.footer = curses.A_UNDERLINE | curses.A_BOLD | curses.color_pair(4)
+
+
 ARROWKEYS = {
     curses.KEY_UP: Action.UP,
     ord("k"): Action.UP,
@@ -34,6 +45,7 @@ class Grid:
     def __init__(self, scr, sheets, precision, cellwidth):
         self.scr = scr
         self.sheets = sheets
+        self.styles = Styles()
         self.sheetId = 0
         self.sheetNames = list(self.sheets.keys())
         self.precision = precision
@@ -101,38 +113,16 @@ class Grid:
                     self.sheetId = (self.sheetId - 1) % len(self.sheetNames)
                     self.init()
 
-    def draw(self):
-        self.scr.clear()
+    def set_screen_variables(self):
         self.scrheight, self.fullwidth = self.scr.getmaxyx()
         self.scrwidth = math.ceil((self.fullwidth - self.idxwidth) / self.cellwidth)
-        ww = min(self.width - self.screenx, self.scrwidth)
-        header = (("{:" f"{self.fmtwidth}" + "}" + self.sep) * ww).format(
-            *self.cols[self.screenx : self.screenx + ww]
-        )
-        self.scr.addstr(
-            0, self.idxwidth, header, curses.A_UNDERLINE | curses.color_pair(3)
-        )
-        self.draw_grid()
-        fw = "{:>" + f"{self.fullwidth}" + "}"
-        selval = str(self.arr[self.y][self.x])
-        self.scr.addstr(
-            self.scrheight - 2,
-            0,
-            fw.format(selval),
-            curses.A_UNDERLINE | curses.A_BOLD | curses.color_pair(4),
-        )
-        w = 0
-        for i, sheet in enumerate(self.sheetNames):
-            if i == self.sheetId:
-                self.scr.addstr(
-                    self.scrheight - 1,
-                    w,
-                    sheet,
-                    curses.A_BOLD | curses.A_UNDERLINE | curses.color_pair(2),
-                )
-            else:
-                self.scr.addstr(self.scrheight - 1, w, sheet, curses.color_pair(2))
-            w += len(sheet) + 1
+        self.num_cols_in_screen = min(self.width - self.screenx, self.scrwidth)
+
+    def draw_header(self):
+        header = (
+            ("{:" f"{self.fmtwidth}" + "}" + self.sep) * self.num_cols_in_screen
+        ).format(*self.cols[self.screenx : self.screenx + self.num_cols_in_screen])
+        self.scr.addstr(0, self.idxwidth, header, self.styles.header)
 
     def draw_grid(self):
         for row in range(min(self.heigth - self.screeny, self.scrheight - 3)):
@@ -141,9 +131,9 @@ class Grid:
                 row + 1,
                 0,
                 ee.format(str(row + self.screeny + 1) + self.sep),
-                curses.color_pair(3),
+                self.styles.lineno,
             )
-            for col in range(min(self.width - self.screenx, self.scrwidth)):
+            for col in range(self.num_cols_in_screen):
                 stringi = self.formatValue(
                     self.arr[row + self.screeny, col + self.screenx]
                 )
@@ -152,7 +142,7 @@ class Grid:
                         row + 1,
                         col * self.cellwidth + self.idxwidth,
                         stringi,
-                        curses.color_pair(1),
+                        self.styles.selection,
                     )
                 else:
                     if row == self.scrheight - 4:
@@ -168,6 +158,42 @@ class Grid:
                             col * self.cellwidth + self.idxwidth,
                             stringi,
                         )
+        self.scr.addstr(
+            row + 2,
+            0,
+            " " * self.fullwidth,
+            self.styles.lineno,
+        )
+
+    def draw_sheets(self):
+        sheetPos = 0
+        for i, sheet in enumerate(self.sheetNames):
+            if i == self.sheetId:
+                self.scr.addstr(
+                    self.scrheight - 1,
+                    sheetPos,
+                    sheet,
+                    self.styles.sheet_selection,
+                )
+            else:
+                self.scr.addstr(self.scrheight - 1, sheetPos, sheet, self.styles.sheets)
+            sheetPos += len(sheet) + 1
+
+    def draw_footer(self):
+        self.scr.addstr(
+            self.scrheight - 2,
+            0,
+            ("{:>" + f"{self.fullwidth}" + "}").format(str(self.arr[self.y][self.x])),
+            self.styles.footer,
+        )
+
+    def draw(self):
+        self.scr.clear()
+        self.set_screen_variables()
+        self.draw_header()
+        self.draw_grid()
+        self.draw_footer()
+        self.draw_sheets()
 
 
 def main(scr, sheets, args):
@@ -176,11 +202,10 @@ def main(scr, sheets, args):
     curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
     curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
     grid = Grid(scr, sheets, args.precision, args.cellwidth)
-    while True:
-        key = scr.getch()
-        if key == ord("q"):
-            break
+    key = scr.getch()
+    while key != ord("q"):
         grid.on_press(key)
+        key = scr.getch()
 
 
 if __name__ == "__main__":
@@ -213,9 +238,15 @@ if __name__ == "__main__":
         type=int,
         default=2,
     )
+    parser.add_argument(
+        "--fillna",
+        help="Value to use to fill holes in the spreadsheets",
+        metavar="FILLNA",
+        default=None,
+    )
     try:
         args = parser.parse_args()
-        sheets = utils.read_spreadsheet(args.file, args.delimiter)
+        sheets = utils.read_spreadsheet(args.file, args.delimiter, args.fillna)
     except TypeError:
         parser.print_usage()
         exit()
