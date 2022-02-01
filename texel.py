@@ -19,13 +19,25 @@ class Action(Enum):
 
 
 class Coordinate:
+    __slots__ = ("x", "y")
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
+    def add(self, x, y):
+        return Coordinate(self.x + x, self.y + y)
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
 
 class Styles:
     def __init__(self):
+        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
         self.bordercolor = curses.color_pair(3)
         self.sheets = curses.color_pair(2)
         self.sheet_selection = curses.A_BOLD | curses.A_UNDERLINE | curses.color_pair(2)
@@ -121,6 +133,7 @@ class Grid:
         self.scrheight, self.fullwidth = self.scr.getmaxyx()
         self.scrwidth = math.ceil((self.fullwidth - self.lnwidth) / self.cellwidth)
         self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth)
+        self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
 
     def draw_header(self):
         header = (
@@ -129,7 +142,7 @@ class Grid:
         self.scr.addstr(0, self.lnwidth, header, self.styles.header)
 
     def draw_grid(self):
-        for row in range(min(self.heigth - self.screen.y, self.scrheight - 3)):
+        for row in range(self.num_rows_in_screen):
             self.scr.addstr(
                 row + 1,
                 0,
@@ -137,38 +150,23 @@ class Grid:
                 self.styles.lineno,
             )
             for col in range(self.num_cols_in_screen):
-                stringi = self.formatValue(
-                    self.arr[row + self.screen.y, col + self.screen.x]
-                )
-                if (col + self.screen.x == self.cursor.x) and (
-                    row + self.screen.y == self.cursor.y
-                ):
-                    self.scr.addstr(
-                        row + 1,
-                        col * self.cellwidth + self.lnwidth,
-                        stringi,
-                        self.styles.selection,
-                    )
+                if (self.screen.add(col, row) == self.cursor):
+                    style = self.styles.selection
                 else:
-                    if row == self.scrheight - 4:
-                        self.scr.addstr(
-                            row + 1,
-                            col * self.cellwidth + self.lnwidth,
-                            stringi,
-                            curses.A_UNDERLINE,
-                        )
-                    else:
-                        self.scr.addstr(
-                            row + 1,
-                            col * self.cellwidth + self.lnwidth,
-                            stringi,
-                        )
-        self.scr.addstr(
-            row + 2,
-            0,
-            " " * self.fullwidth,
-            self.styles.lineno,
-        )
+                    style = (
+                        curses.A_UNDERLINE
+                        if (row == self.num_rows_in_screen - 1)
+                        else curses.A_NORMAL
+                    )
+                self.scr.addstr(
+                    row + 1,
+                    col * self.cellwidth + self.lnwidth,
+                    self.formatValue(
+                        self.arr[row + self.screen.y, col + self.screen.x]
+                    ),
+                    style,
+                )
+        self.scr.addstr(row + 2, 0, " " * self.fullwidth, self.styles.lineno)
 
     def draw_sheets(self):
         sheetPos = 0
@@ -189,7 +187,7 @@ class Grid:
             self.scrheight - 2,
             0,
             ("{:>" + f"{self.fullwidth}" + "}").format(
-                str(self.arr[self.cursor.y][self.cursor.x])
+                str(self.arr[self.cursor.y, self.cursor.x])
             ),
             self.styles.footer,
         )
@@ -204,10 +202,6 @@ class Grid:
 
 
 def main(scr, sheets, args):
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-    curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
     grid = Grid(scr, sheets, args.precision, args.cellwidth)
     key = scr.getch()
     while key != ord("q"):
