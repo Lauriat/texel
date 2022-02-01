@@ -18,6 +18,12 @@ class Action(Enum):
     RIGHT = auto()
 
 
+class Coordinate:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
 class Styles:
     def __init__(self):
         self.bordercolor = curses.color_pair(3)
@@ -56,17 +62,15 @@ class Grid:
         self.init()
 
     def init(self):
-        self.x = 0
-        self.y = 0
-        self.screeny = 0
-        self.screenx = 0
+        self.cursor = Coordinate(0, 0)
+        self.screen = Coordinate(0, 0)
         self.xl = self.sheets[self.sheetNames[self.sheetId]]
         self.arr = self.xl.to_numpy()
         self.heigth, self.width = self.xl.shape
-        self.idxwidth = int(math.log10(self.heigth) + 2)
+        self.lnwidth = int(math.log10(self.heigth) + 2)
         self.cols = utils.get_alphas(self.width)
         self.fmtstr = "{:>" + f"{self.fmtwidth}" + "}" + self.sep
-        self.width_char = self.cellwidth * self.width + self.idxwidth
+        self.lnfmt = "{:>" + f"{self.lnwidth}" + "}"
         self.draw()
 
     def formatValue(self, x):
@@ -87,18 +91,18 @@ class Grid:
         }
 
     def move_horizontal(self, direction):
-        self.x = (self.x + direction) % self.width
-        if (self.x - self.screenx) >= self.scrwidth - 2:
-            self.screenx = self.x - self.scrwidth + 2
-        elif self.x < self.screenx:
-            self.screenx = self.x
+        self.cursor.x = (self.cursor.x + direction) % self.width
+        if (self.cursor.x - self.screen.x) >= self.scrwidth - 2:
+            self.screen.x = self.cursor.x - self.scrwidth + 2
+        elif self.cursor.x < self.screen.x:
+            self.screen.x = self.cursor.x
 
     def move_vertical(self, direction):
-        self.y = (self.y + direction) % self.heigth
-        if (self.y - self.screeny) >= self.scrheight - 3:
-            self.screeny = self.y - (self.scrheight - 3) + 1
-        elif self.y < self.screeny:
-            self.screeny = self.y
+        self.cursor.y = (self.cursor.y + direction) % self.heigth
+        if (self.cursor.y - self.screen.y) >= self.scrheight - 3:
+            self.screen.y = self.cursor.y - (self.scrheight - 3) + 1
+        elif self.cursor.y < self.screen.y:
+            self.screen.y = self.cursor.y
 
     def on_press(self, key):
         if key in ARROWKEYS:
@@ -115,32 +119,33 @@ class Grid:
 
     def set_screen_variables(self):
         self.scrheight, self.fullwidth = self.scr.getmaxyx()
-        self.scrwidth = math.ceil((self.fullwidth - self.idxwidth) / self.cellwidth)
-        self.num_cols_in_screen = min(self.width - self.screenx, self.scrwidth)
+        self.scrwidth = math.ceil((self.fullwidth - self.lnwidth) / self.cellwidth)
+        self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth)
 
     def draw_header(self):
         header = (
             ("{:" f"{self.fmtwidth}" + "}" + self.sep) * self.num_cols_in_screen
-        ).format(*self.cols[self.screenx : self.screenx + self.num_cols_in_screen])
-        self.scr.addstr(0, self.idxwidth, header, self.styles.header)
+        ).format(*self.cols[self.screen.x : self.screen.x + self.num_cols_in_screen])
+        self.scr.addstr(0, self.lnwidth, header, self.styles.header)
 
     def draw_grid(self):
-        for row in range(min(self.heigth - self.screeny, self.scrheight - 3)):
-            ee = "{:>" + f"{self.idxwidth}" + "}"
+        for row in range(min(self.heigth - self.screen.y, self.scrheight - 3)):
             self.scr.addstr(
                 row + 1,
                 0,
-                ee.format(str(row + self.screeny + 1) + self.sep),
+                self.lnfmt.format(str(row + self.screen.y + 1) + self.sep),
                 self.styles.lineno,
             )
             for col in range(self.num_cols_in_screen):
                 stringi = self.formatValue(
-                    self.arr[row + self.screeny, col + self.screenx]
+                    self.arr[row + self.screen.y, col + self.screen.x]
                 )
-                if (col + self.screenx == self.x) and (row + self.screeny == self.y):
+                if (col + self.screen.x == self.cursor.x) and (
+                    row + self.screen.y == self.cursor.y
+                ):
                     self.scr.addstr(
                         row + 1,
-                        col * self.cellwidth + self.idxwidth,
+                        col * self.cellwidth + self.lnwidth,
                         stringi,
                         self.styles.selection,
                     )
@@ -148,14 +153,14 @@ class Grid:
                     if row == self.scrheight - 4:
                         self.scr.addstr(
                             row + 1,
-                            col * self.cellwidth + self.idxwidth,
+                            col * self.cellwidth + self.lnwidth,
                             stringi,
                             curses.A_UNDERLINE,
                         )
                     else:
                         self.scr.addstr(
                             row + 1,
-                            col * self.cellwidth + self.idxwidth,
+                            col * self.cellwidth + self.lnwidth,
                             stringi,
                         )
         self.scr.addstr(
@@ -183,7 +188,9 @@ class Grid:
         self.scr.addstr(
             self.scrheight - 2,
             0,
-            ("{:>" + f"{self.fullwidth}" + "}").format(str(self.arr[self.y][self.x])),
+            ("{:>" + f"{self.fullwidth}" + "}").format(
+                str(self.arr[self.cursor.y][self.cursor.x])
+            ),
             self.styles.footer,
         )
 
