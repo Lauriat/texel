@@ -1,32 +1,39 @@
 import curses
-from enum import Enum, auto
+
+
+class Key:
+    def __init__(self, *values):
+        self._values = values
+        self._hash = hash(values)
+        self._keyset = set(values)
+
+    def __eq__(self, other):
+        if isinstance(other, Key):
+            return self._hash == other._hash
+        return other in self._keyset
+
+    def __iter__(self):
+        for key in self._values:
+            yield key
+
+    def __hash__(self):
+        return self._hash
 
 
 class Keys:
-    ESC = 27
-    TAB = ord("\t")
-    SHIFT_TAB = 353
-    VISUAL = ord("v")
-    N = ord("n")
-    SHIFT_N = ord("N")
-    COPY = ord("c")
-    QUIT = ord("q")
+    ESC = Key(27)
+    TAB = Key(ord("\t"), ord("n"))
+    SHIFT_TAB = Key(353, ord("N"))
+    VISUAL = Key(ord("v"))
+    COPY = Key(ord("c"))
+    QUIT = Key(ord("q"))
+    UP = Key(curses.KEY_UP, ord("k"))
+    DOWN = Key(curses.KEY_DOWN, ord("j"))
+    LEFT = Key(curses.KEY_LEFT, ord("h"))
+    RIGHT = Key(curses.KEY_RIGHT, ord("l"))
+    ALL = [ESC, TAB, SHIFT_TAB, VISUAL, COPY, QUIT, UP, DOWN, LEFT, RIGHT]
+    id_to_key = {id: key for key in ALL for id in key}
 
-
-class Action(Enum):
-    UP = auto()
-    DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
-
-
-ARROWKEYS = {
-    curses.KEY_UP: Action.UP,
-    ord("k"): Action.UP,
-    curses.KEY_DOWN: Action.DOWN,
-    ord("j"): Action.DOWN,
-    curses.KEY_LEFT: Action.LEFT,
-    ord("h"): Action.LEFT,
-    curses.KEY_RIGHT: Action.RIGHT,
-    ord("l"): Action.RIGHT,
-}
+    @staticmethod
+    def to_key(key):
+        return Keys.id_to_key.get(key)
