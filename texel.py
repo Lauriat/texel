@@ -1,16 +1,20 @@
 #!/usr/bin/env python
 
+import os
 import curses
 from argparse import ArgumentParser
 
 from grid import Grid
+from actions import Keys
 from utils import read_spreadsheet
+
+os.environ.setdefault("ESCDELAY", "100")
 
 
 def main(scr, sheets, args):
     grid = Grid(scr, sheets, args.precision, args.cellwidth)
     key = scr.getch()
-    while key != ord("q"):
+    while key != Keys.QUIT:
         grid.on_press(key)
         key = scr.getch()
 
@@ -47,7 +51,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--fillna",
-        help="Value to use to fill holes in the spreadsheets",
+        help="Value to use to fill holes in the spreadsheet",
         metavar="FILLNA",
         default=None,
     )

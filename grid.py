@@ -1,13 +1,12 @@
 import curses
 import math
-from functools import partial
-from numbers import Number
-
 import numpy as np
+import pyperclip
 
 import utils
-from actions import Action, ARROWKEYS
+from actions import Action, ARROWKEYS, Keys
 from coordinate import Coordinate
+from functools import partial
 from styles import Styles
 
 
@@ -15,38 +14,49 @@ class Grid:
     def __init__(self, scr, sheets, precision, cellwidth):
         self.scr = scr
         self.sheets = sheets
-        self.styles = Styles()
         self.sheetId = 0
         self.sheetNames = list(self.sheets.keys())
+        self.styles = Styles()
+        self.sep = "|"
         self.precision = precision
         self.fmtwidth = cellwidth
         self.cellwidth = self.fmtwidth + 1
-        self.actions = self.arrow_actions()
-        self.sep = "|"
+        self.actions = self.get_arrow_actions()
         self.init()
 
     def init(self):
         self.cursor = Coordinate(0, 0)
         self.screen = Coordinate(0, 0)
-        self.xl = self.sheets[self.sheetNames[self.sheetId]]
-        self.arr = self.xl.to_numpy()
-        self.heigth, self.width = self.xl.shape
+        self.as_arr = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
+        self.heigth, self.width = self.as_arr.shape
         self.lnwidth = int(math.log10(self.heigth) + 2)
         self.cols = utils.get_alphas(self.width)
         self.fmtstr = "{:>" + f"{self.fmtwidth}" + "}" + self.sep
         self.lnfmt = "{:>" + f"{self.lnwidth}" + "}"
+        self.visual = None
         self.draw()
 
-    def formatValue(self, x):
-        if isinstance(x, Number):
-            if not isinstance(x, (int, np.integer)):
-                x = round(x, self.precision)
+    def format_cell(self, x):
+        if isinstance(x, (float, np.floating)):
+            x = round(x, self.precision)
         x = str(x)
         if len(x) > self.fmtwidth:
             x = x[: self.fmtwidth - 3] + "..."
         return self.fmtstr.format(x)
 
-    def arrow_actions(self):
+    def copy(self):
+        if self.visual is None:
+            pyperclip.copy(str(self.as_arr[self.cursor.y, self.cursor.x]))
+        else:
+            minmaxy = sorted([self.cursor.y, self.visual.y])
+            minmaxx = sorted([self.cursor.x, self.visual.x])
+            selection = self.as_arr[
+                minmaxy[0] : minmaxy[1] + 1, minmaxx[0] : minmaxx[1] + 1
+            ]
+            pyperclip.copy("\n".join(",".join(map(str, e)) for e in selection))
+        self.draw_footer("Copied")
+
+    def get_arrow_actions(self):
         return {
             Action.UP: partial(self.move_vertical, -1),
             Action.DOWN: partial(self.move_vertical, 1),
@@ -72,12 +82,21 @@ class Grid:
         if key in ARROWKEYS:
             self.actions[ARROWKEYS[key]]()
             self.draw()
+        elif key == Keys.VISUAL:
+            self.visual = Coordinate(self.cursor.x, self.cursor.y)
+            self.draw()
+        elif key == Keys.ESC:
+            if self.visual is not None:
+                self.visual = None
+                self.draw()
+        elif key == Keys.COPY:
+            self.copy()
         else:
             if len(self.sheetNames) > 1:
-                if key == ord("\t"):
+                if key in (Keys.TAB, Keys.N):
                     self.sheetId = (self.sheetId + 1) % len(self.sheetNames)
                     self.init()
-                if key == 353:
+                if key in (Keys.SHIFT_TAB, Keys.SHIFT_N):
                     self.sheetId = (self.sheetId - 1) % len(self.sheetNames)
                     self.init()
 
@@ -102,19 +121,27 @@ class Grid:
                 self.styles.lineno,
             )
             for col in range(self.num_cols_in_screen):
-                if self.screen.add(col, row) == self.cursor:
+                style = (
+                    curses.A_UNDERLINE
+                    if (row == self.num_rows_in_screen - 1)
+                    else curses.A_NORMAL
+                )
+                if self.visual is not None:
+                    coord = self.screen + Coordinate(col, row)
+                    if (
+                        coord.x >= min(self.cursor.x, self.visual.x)
+                        and coord.x <= max(self.cursor.x, self.visual.x)
+                        and coord.y >= min(self.cursor.y, self.visual.y)
+                        and coord.y <= max(self.cursor.y, self.visual.y)
+                    ):
+                        style = self.styles.selection
+                elif (self.screen + Coordinate(col, row)) == self.cursor:
                     style = self.styles.selection
-                else:
-                    style = (
-                        curses.A_UNDERLINE
-                        if (row == self.num_rows_in_screen - 1)
-                        else curses.A_NORMAL
-                    )
                 self.scr.addstr(
                     row + 1,
                     col * self.cellwidth + self.lnwidth,
-                    self.formatValue(
-                        self.arr[row + self.screen.y, col + self.screen.x]
+                    self.format_cell(
+                        self.as_arr[row + self.screen.y, col + self.screen.x]
                     ),
                     style,
                 )
@@ -134,13 +161,12 @@ class Grid:
                 self.scr.addstr(self.scrheight - 1, sheetPos, sheet, self.styles.sheets)
             sheetPos += len(sheet) + 1
 
-    def draw_footer(self):
+    def draw_footer(self, string=None):
+        string = string or str(self.as_arr[self.cursor.y, self.cursor.x])
         self.scr.addstr(
             self.scrheight - 2,
             0,
-            ("{:>" + f"{self.fullwidth}" + "}").format(
-                str(self.arr[self.cursor.y, self.cursor.x])
-            ),
+            ("{:>" + f"{self.fullwidth}" + "}").format(string),
             self.styles.footer,
         )
 
