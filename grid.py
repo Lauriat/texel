@@ -1,7 +1,6 @@
 import curses
 import math
 import pyperclip
-from functools import partial
 
 import utils
 from actions import Keys
@@ -17,7 +16,7 @@ class Grid:
         self.sheetNames = list(self.sheets.keys())
         self.styles = Styles(precision)
         self.fmtwidth = cellwidth
-        self.arrow_actions = self.get_arrow_actions()
+        self.actions = self.get_actions()
         self.init()
 
     def init(self):
@@ -30,29 +29,32 @@ class Grid:
         self.visual = None
         self.draw()
 
+    def redraw(self, func, *args, **kwargs):
+        def runnable():
+            func(*args, **kwargs)
+            self.draw()
+
+        return runnable
+
+    def set_visual(self, reset=False):
+        self.visual = None if reset else Coordinate(self.cursor.x, self.cursor.y)
+
     def on_press(self, key):
         key = Keys.to_key(key)
-        if key is None:
-            return
-        if key in self.arrow_actions:
-            self.move(key)
-        elif key == Keys.VISUAL:
-            self.visual = Coordinate(self.cursor.x, self.cursor.y)
-            self.draw()
-        elif key == Keys.ESC:
-            self.visual = None
-            self.draw()
-        elif key == Keys.COPY:
-            self.copy()
-        elif key in (Keys.TAB, Keys.SHIFT_TAB):
-            self.switch_sheet(key == Keys.TAB)
+        if key in self.actions:
+            self.actions[key]()
 
-    def get_arrow_actions(self):
+    def get_actions(self):
         return {
-            Keys.UP: partial(self.move_vertical, -1),
-            Keys.DOWN: partial(self.move_vertical, 1),
-            Keys.LEFT: partial(self.move_horizontal, -1),
-            Keys.RIGHT: partial(self.move_horizontal, 1),
+            Keys.UP: self.redraw(self.move_vertical, -1),
+            Keys.DOWN: self.redraw(self.move_vertical, 1),
+            Keys.LEFT: self.redraw(self.move_horizontal, -1),
+            Keys.RIGHT: self.redraw(self.move_horizontal, 1),
+            Keys.TAB: self.redraw(self.switch_sheet, 1),
+            Keys.SHIFT_TAB: self.redraw(self.switch_sheet, -1),
+            Keys.VISUAL: self.redraw(self.set_visual),
+            Keys.ESC: self.redraw(self.set_visual, reset=True),
+            Keys.COPY: self.copy,
         }
 
     def copy(self):
@@ -68,10 +70,6 @@ class Grid:
         self.draw()
         self.draw_footer("Copied")
 
-    def move(self, key):
-        self.arrow_actions[key]()
-        self.draw()
-
     def move_horizontal(self, direction):
         self.cursor.x = (self.cursor.x + direction) % self.width
         if (self.cursor.x - self.screen.x) >= self.scrwidth - 2:
@@ -86,8 +84,8 @@ class Grid:
         elif self.cursor.y < self.screen.y:
             self.screen.y = self.cursor.y
 
-    def switch_sheet(self, forward):
-        self.sheetId = (self.sheetId + (1 if forward else -1)) % len(self.sheetNames)
+    def switch_sheet(self, direction):
+        self.sheetId = (self.sheetId + direction) % len(self.sheetNames)
         self.init()
 
     def set_screen_variables(self):

@@ -6,9 +6,11 @@ class Styles:
     def __init__(self, precision):
         self.separator = "|"
         self.precision = precision
+        self.init_colors()
         self.width = None
         self.lnwidth = None
-        self.init_colors()
+        self.cell_fmt = None
+        self.lineno_fmt = None
 
     def init(self, cellwidth, linenowidth):
         self.width = cellwidth
