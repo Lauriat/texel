@@ -24,16 +24,16 @@ class Keys:
     ESC = Key(27)
     TAB = Key(ord("\t"), ord("n"))
     SHIFT_TAB = Key(353, ord("N"))
-    VISUAL = Key(ord("v"))
-    COPY = Key(ord("c"))
+    VISUAL = Key(ord("v"), ord("V"))
+    COPY = Key(ord("c"), ord("y"))
     QUIT = Key(ord("q"))
     UP = Key(curses.KEY_UP, ord("k"))
     DOWN = Key(curses.KEY_DOWN, ord("j"))
     LEFT = Key(curses.KEY_LEFT, ord("h"))
     RIGHT = Key(curses.KEY_RIGHT, ord("l"))
     ALL = [ESC, TAB, SHIFT_TAB, VISUAL, COPY, QUIT, UP, DOWN, LEFT, RIGHT]
-    id_to_key = {id: key for key in ALL for id in key}
+    _id_to_key = {id: key for key in ALL for id in key}
 
     @staticmethod
     def to_key(key):
-        return Keys.id_to_key.get(key)
+        return Keys._id_to_key.get(key)

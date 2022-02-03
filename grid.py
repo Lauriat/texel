@@ -1,6 +1,5 @@
 import curses
 import math
-import numpy as np
 import pyperclip
 from functools import partial
 
@@ -16,11 +15,8 @@ class Grid:
         self.sheets = sheets
         self.sheetId = 0
         self.sheetNames = list(self.sheets.keys())
-        self.styles = Styles()
-        self.sep = "|"
-        self.precision = precision
+        self.styles = Styles(precision)
         self.fmtwidth = cellwidth
-        self.cellwidth = self.fmtwidth + 1
         self.arrow_actions = self.get_arrow_actions()
         self.init()
 
@@ -30,9 +26,7 @@ class Grid:
         self.as_arr = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
         self.heigth, self.width = self.as_arr.shape
         self.lnwidth = int(math.log10(self.heigth) + 2)
-        self.cols = utils.get_alphas(self.width)
-        self.fmtstr = "{:>" + f"{self.fmtwidth}" + "}" + self.sep
-        self.lnfmt = "{:>" + f"{self.lnwidth}" + "}"
+        self.styles.init(self.fmtwidth, self.lnwidth)
         self.visual = None
         self.draw()
 
@@ -61,27 +55,18 @@ class Grid:
             Keys.RIGHT: partial(self.move_horizontal, 1),
         }
 
-    def format_cell(self, x):
-        if isinstance(x, (float, np.floating)):
-            x = round(x, self.precision)
-        x = str(x)
-        if len(x) > self.fmtwidth:
-            x = x[: self.fmtwidth - 3] + "..."
-        return self.fmtstr.format(x)
-
     def copy(self):
         if self.visual is None:
             pyperclip.copy(str(self.as_arr[self.cursor.y, self.cursor.x]))
         else:
-            minmaxy = sorted([self.cursor.y, self.visual.y])
-            minmaxx = sorted([self.cursor.x, self.visual.x])
-            selection = self.as_arr[
-                minmaxy[0] : minmaxy[1] + 1, minmaxx[0] : minmaxx[1] + 1
-            ]
-            pyperclip.copy("\n".join(",".join(map(str, e)) for e in selection))
-        self.draw_footer("Copied")
+            ymin, ymax = sorted([self.cursor.y, self.visual.y])
+            xmin, xmax = sorted([self.cursor.x, self.visual.x])
+            pyperclip.copy(
+                utils.matrix_to_string(self.as_arr[ymin : ymax + 1, xmin : xmax + 1])
+            )
         self.visual = None
         self.draw()
+        self.draw_footer("Copied")
 
     def move(self, key):
         self.arrow_actions[key]()
@@ -107,15 +92,17 @@ class Grid:
 
     def set_screen_variables(self):
         self.scrheight, self.fullwidth = self.scr.getmaxyx()
-        self.scrwidth = math.ceil((self.fullwidth - self.lnwidth) / self.cellwidth)
+        self.scrwidth = math.ceil((self.fullwidth - self.lnwidth) / (self.fmtwidth + 1))
         self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth)
         self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
 
     def draw_header(self):
-        header = (
-            ("{:" f"{self.fmtwidth}" + "}" + self.sep) * self.num_cols_in_screen
-        ).format(*self.cols[self.screen.x : self.screen.x + self.num_cols_in_screen])
-        self.scr.addstr(0, self.lnwidth, header, self.styles.header)
+        alphas = utils.get_alphas(self.width)
+        fmt = self.styles.get_header_format_string(self.num_cols_in_screen)
+        header = fmt.format(
+            *alphas[self.screen.x : self.screen.x + self.num_cols_in_screen]
+        )
+        self.scr.addstr(0, self.lnwidth, header, self.styles.c_header)
 
     def get_cell_style(self, row, col):
         coord = self.screen + Coordinate(col, row)
@@ -126,9 +113,9 @@ class Grid:
                 and coord.y >= min(self.cursor.y, self.visual.y)
                 and coord.y <= max(self.cursor.y, self.visual.y)
             ):
-                return self.styles.visual
+                return self.styles.c_visual
         if coord == self.cursor:
-            return self.styles.selection
+            return self.styles.c_selection
         return (
             curses.A_UNDERLINE
             if (row == self.num_rows_in_screen - 1)
@@ -140,19 +127,19 @@ class Grid:
             self.scr.addstr(
                 row + 1,
                 0,
-                self.lnfmt.format(str(row + self.screen.y + 1) + self.sep),
-                self.styles.lineno,
+                self.styles.lineno_fmt.format(str(row + self.screen.y + 1)),
+                self.styles.c_lineno,
             )
             for col in range(self.num_cols_in_screen):
                 self.scr.addstr(
                     row + 1,
-                    col * self.cellwidth + self.lnwidth,
-                    self.format_cell(
-                        self.as_arr[row + self.screen.y, col + self.screen.x]
+                    col * (self.fmtwidth + 1) + self.lnwidth,
+                    self.styles.format_cell(
+                        self.as_arr[row + self.screen.y, col + self.screen.x],
                     ),
                     self.get_cell_style(row, col),
                 )
-        self.scr.addstr(row + 2, 0, " " * self.fullwidth, self.styles.lineno)
+        self.scr.addstr(row + 2, 0, " " * self.fullwidth)
 
     def draw_sheets(self):
         sheetPos = 0
@@ -162,10 +149,12 @@ class Grid:
                     self.scrheight - 1,
                     sheetPos,
                     sheet,
-                    self.styles.sheet_selection,
+                    self.styles.c_sheet_selection,
                 )
             else:
-                self.scr.addstr(self.scrheight - 1, sheetPos, sheet, self.styles.sheets)
+                self.scr.addstr(
+                    self.scrheight - 1, sheetPos, sheet, self.styles.c_sheets
+                )
             sheetPos += len(sheet) + 1
 
     def draw_footer(self, string=None):
@@ -173,8 +162,8 @@ class Grid:
         self.scr.addstr(
             self.scrheight - 2,
             0,
-            ("{:>" + f"{self.fullwidth}" + "}").format(string),
-            self.styles.footer,
+            self.styles.get_footer_format_string(self.fullwidth).format(string),
+            self.styles.c_footer,
         )
 
     def draw(self):
