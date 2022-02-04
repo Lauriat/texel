@@ -2,10 +2,10 @@ import curses
 import math
 import pyperclip
 
-from utils import arr2string, get_alphas
-from actions import Keys
-from coordinate import Coordinate
-from styles import Styles
+from .utils import arr2string, get_alphas
+from .actions import Keys
+from .coordinate import Coordinate
+from .styles import Styles
 
 
 class Grid:

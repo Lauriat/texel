@@ -5,7 +5,7 @@ setup(
     packages=["texel"],
     entry_points={"console_scripts": ["texel = texel.texel:main"]},
     version="0.0.1",
-    description="Spreadsheet cli",
+    description="Spreadsheet CLI",
     author="Lauri Tuominen",
     author_email="lauri.a.tuominen@gmail.com",
 )

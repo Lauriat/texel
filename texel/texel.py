@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 
-import os
 import curses
 from argparse import ArgumentParser
 
-from grid import Grid
-from actions import Keys
-from utils import read_spreadsheet
-
-os.environ.setdefault("ESCDELAY", "100")
+from .grid import Grid
+from .actions import Keys
+from .utils import read_spreadsheet
 
 
-def main(scr, sheets, args):
+
+def run(scr, sheets, args):
     grid = Grid(scr, sheets, args.precision, args.cellwidth)
     key = scr.getch()
     while key != Keys.QUIT:
@@ -19,7 +17,7 @@ def main(scr, sheets, args):
         key = scr.getch()
 
 
-if __name__ == "__main__":
+def main():
     parser = ArgumentParser()
     parser.add_argument(
         "file",
@@ -64,4 +62,4 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print("Cannot find or open {}".format(args.file))
         exit()
-    curses.wrapper(main, sheets, args)
+    curses.wrapper(run, sheets, args)
