@@ -23,7 +23,7 @@ class Styles:
         self.cell_fmt: str = None
         self.lineno_fmt: str = None
 
-    def init(self, height):
+    def init(self, height: int):
         self.lnwidth: int = int(math.log10(height) + 2)
         self.cell_fmt: str = self.get_cell_format_string()
         self.lineno_fmt: str = self.get_lineno_format_string()
@@ -50,10 +50,10 @@ class Styles:
     def get_lineno_format_string(self) -> str:
         return "{:>" + f"{self.lnwidth - 1}" + "}" + self.separator
 
-    def get_header_format_string(self, num_cols) -> str:
+    def get_header_format_string(self, num_cols: int) -> str:
         return ("{:" f"{self.width}" + "}" + self.separator) * num_cols
 
-    def get_footer_format_string(self, width) -> str:
+    def get_footer_format_string(self, width: int) -> str:
         return "{:>" + f"{width}" + "}"
 
     def format_cell(self, x) -> str:
