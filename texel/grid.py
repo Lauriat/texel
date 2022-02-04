@@ -1,45 +1,50 @@
 import curses
 import math
-import pyperclip
 
-from .utils import arr2string, get_alphas
-from .actions import Keys
+import numpy as np
+import pandas as pd
+from typing import Callable, Dict, List, Optional
+
 from .coordinate import Coordinate
+from .keys import Keys, Key
 from .styles import Styles
+from . import utils
 
 
 class Grid:
-    def __init__(self, scr, sheets, precision, cellwidth):
-        self.scr = scr
-        self.sheets = sheets
-        self.sheetId = 0
-        self.sheetNames = list(self.sheets.keys())
-        self.actions = self.get_actions()
-        self.styles = Styles(cellwidth, precision)
+    def __init__(
+        self, scr: curses.window, sheets: Dict[str, pd.DataFrame], styles: Styles
+    ):
+        self.scr: curses.window = scr
+        self.sheets: Dict[str, pd.DataFrame] = sheets
+        self.sheetId: int = 0
+        self.sheetNames: List[str] = list(self.sheets.keys())
+        self.actions: Dict[Key, Callable] = self.get_actions()
+        self.styles: Styles = styles
         self.init()
 
     def init(self):
-        self.cursor = Coordinate(0, 0)
-        self.screen = Coordinate(0, 0)
-        self.as_arr = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
+        self.cursor: Coordinate = Coordinate(0, 0)
+        self.screen: Coordinate = Coordinate(0, 0)
+        self.as_arr: np.ndarray = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
+        self.visual: Optional[Coordinate] = None
         self.heigth, self.width = self.as_arr.shape
         self.styles.init(self.heigth)
-        self.visual = None
         self.draw()
 
-    def redraw(self, func, *args, **kwargs):
+    def redraw(self, func, *args, **kwargs) -> Callable:
         def runnable():
             func(*args, **kwargs)
             self.draw()
 
         return runnable
 
-    def on_press(self, key):
+    def on_press(self, key: int):
         key = Keys.to_key(key)
         if key in self.actions:
             self.actions[key]()
 
-    def get_actions(self):
+    def get_actions(self) -> Dict[Key, Callable]:
         return {
             Keys.UP: self.redraw(self.move_vertical, -1),
             Keys.DOWN: self.redraw(self.move_vertical, 1),
@@ -57,30 +62,30 @@ class Grid:
 
     def copy(self):
         if self.visual is None:
-            pyperclip.copy(str(self.as_arr[self.cursor.y, self.cursor.x]))
+            utils.copy(self.as_arr[self.cursor.y, self.cursor.x])
         else:
             ymin, ymax = sorted([self.cursor.y, self.visual.y])
             xmin, xmax = sorted([self.cursor.x, self.visual.x])
-            pyperclip.copy(arr2string(self.as_arr[ymin : ymax + 1, xmin : xmax + 1]))
+            utils.copy(self.as_arr[ymin : ymax + 1, xmin : xmax + 1])
         self.visual = None
         self.draw()
         self.draw_footer("Copied")
 
-    def move_horizontal(self, direction):
+    def move_horizontal(self, direction: int):
         self.cursor.x = (self.cursor.x + direction) % self.width
         if (self.cursor.x - self.screen.x) >= self.scrwidth - 2:
             self.screen.x = self.cursor.x - self.scrwidth + 2
         elif self.cursor.x < self.screen.x:
             self.screen.x = self.cursor.x
 
-    def move_vertical(self, direction):
+    def move_vertical(self, direction: int):
         self.cursor.y = (self.cursor.y + direction) % self.heigth
         if (self.cursor.y - self.screen.y) >= self.scrheight - 3:
             self.screen.y = self.cursor.y - (self.scrheight - 3) + 1
         elif self.cursor.y < self.screen.y:
             self.screen.y = self.cursor.y
 
-    def switch_sheet(self, direction):
+    def switch_sheet(self, direction: int):
         self.sheetId = (self.sheetId + direction) % len(self.sheetNames)
         self.init()
 
@@ -93,14 +98,14 @@ class Grid:
         self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
 
     def draw_header(self):
-        alphas = get_alphas(self.width)
+        alphas = utils.get_alphas(self.width)
         fmt = self.styles.get_header_format_string(self.num_cols_in_screen)
         header = fmt.format(
             *alphas[self.screen.x : self.screen.x + self.num_cols_in_screen]
         )
         self.scr.addstr(0, self.styles.lnwidth, header, self.styles.c_header)
 
-    def get_cell_style(self, row, col):
+    def get_cell_style(self, row: int, col: int):
         coord = self.screen + Coordinate(col, row)
         if self.visual is not None:
             if (

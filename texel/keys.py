@@ -35,5 +35,5 @@ class Keys:
     _id_to_key = {id: key for key in ALL for id in key}
 
     @staticmethod
-    def to_key(key):
+    def to_key(key: int) -> Key:
         return Keys._id_to_key.get(key)

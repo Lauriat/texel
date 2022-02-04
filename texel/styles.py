@@ -4,19 +4,19 @@ import numpy as np
 
 
 class Styles:
-    def __init__(self, cellwidth, precision):
-        self.separator = "|"
-        self.precision = precision
+    def __init__(self, cellwidth: int, precision: int):
+        self.separator: str = "|"
+        self.precision: int = precision
         self.init_colors()
-        self.width = cellwidth
-        self.lnwidth = None
-        self.cell_fmt = None
-        self.lineno_fmt = None
+        self.width: int = cellwidth
+        self.lnwidth: int = None
+        self.cell_fmt: str = None
+        self.lineno_fmt: str = None
 
     def init(self, height):
-        self.lnwidth = int(math.log10(height) + 2)
-        self.cell_fmt = self.get_cell_format_string()
-        self.lineno_fmt = self.get_lineno_format_string()
+        self.lnwidth: int = int(math.log10(height) + 2)
+        self.cell_fmt: str = self.get_cell_format_string()
+        self.lineno_fmt: str = self.get_lineno_format_string()
 
     def init_colors(self):
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
@@ -33,19 +33,19 @@ class Styles:
         self.c_lineno = self.c_border
         self.c_visual = curses.color_pair(5)
 
-    def get_cell_format_string(self):
+    def get_cell_format_string(self) -> str:
         return "{:>" + f"{self.width}" + "}" + self.separator
 
-    def get_lineno_format_string(self):
+    def get_lineno_format_string(self) -> str:
         return "{:>" + f"{self.lnwidth - 1}" + "}" + self.separator
 
-    def get_header_format_string(self, num_cols):
+    def get_header_format_string(self, num_cols) -> str:
         return ("{:" f"{self.width}" + "}" + self.separator) * num_cols
 
-    def get_footer_format_string(self, width):
+    def get_footer_format_string(self, width) -> str:
         return "{:>" + f"{width}" + "}"
 
-    def format_cell(self, x):
+    def format_cell(self, x) -> str:
         if isinstance(x, (float, np.floating)):
             x = round(x, self.precision)
         x = str(x)
