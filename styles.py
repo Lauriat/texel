@@ -1,20 +1,20 @@
 import curses
+import math
 import numpy as np
 
 
 class Styles:
-    def __init__(self, precision):
+    def __init__(self, cellwidth, precision):
         self.separator = "|"
         self.precision = precision
         self.init_colors()
-        self.width = None
+        self.width = cellwidth
         self.lnwidth = None
         self.cell_fmt = None
         self.lineno_fmt = None
 
-    def init(self, cellwidth, linenowidth):
-        self.width = cellwidth
-        self.lnwidth = linenowidth
+    def init(self, height):
+        self.lnwidth = int(math.log10(height) + 2)
         self.cell_fmt = self.get_cell_format_string()
         self.lineno_fmt = self.get_lineno_format_string()
 

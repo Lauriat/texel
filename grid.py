@@ -2,7 +2,7 @@ import curses
 import math
 import pyperclip
 
-import utils
+from utils import arr2string, get_alphas
 from actions import Keys
 from coordinate import Coordinate
 from styles import Styles
@@ -14,9 +14,8 @@ class Grid:
         self.sheets = sheets
         self.sheetId = 0
         self.sheetNames = list(self.sheets.keys())
-        self.styles = Styles(precision)
-        self.fmtwidth = cellwidth
         self.actions = self.get_actions()
+        self.styles = Styles(cellwidth, precision)
         self.init()
 
     def init(self):
@@ -24,8 +23,7 @@ class Grid:
         self.screen = Coordinate(0, 0)
         self.as_arr = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
         self.heigth, self.width = self.as_arr.shape
-        self.lnwidth = int(math.log10(self.heigth) + 2)
-        self.styles.init(self.fmtwidth, self.lnwidth)
+        self.styles.init(self.heigth)
         self.visual = None
         self.draw()
 
@@ -35,9 +33,6 @@ class Grid:
             self.draw()
 
         return runnable
-
-    def set_visual(self, reset=False):
-        self.visual = None if reset else Coordinate(self.cursor.x, self.cursor.y)
 
     def on_press(self, key):
         key = Keys.to_key(key)
@@ -57,15 +52,16 @@ class Grid:
             Keys.COPY: self.copy,
         }
 
+    def set_visual(self, reset=False):
+        self.visual = None if reset else Coordinate(self.cursor.x, self.cursor.y)
+
     def copy(self):
         if self.visual is None:
             pyperclip.copy(str(self.as_arr[self.cursor.y, self.cursor.x]))
         else:
             ymin, ymax = sorted([self.cursor.y, self.visual.y])
             xmin, xmax = sorted([self.cursor.x, self.visual.x])
-            pyperclip.copy(
-                utils.matrix_to_string(self.as_arr[ymin : ymax + 1, xmin : xmax + 1])
-            )
+            pyperclip.copy(arr2string(self.as_arr[ymin : ymax + 1, xmin : xmax + 1]))
         self.visual = None
         self.draw()
         self.draw_footer("Copied")
@@ -90,17 +86,19 @@ class Grid:
 
     def set_screen_variables(self):
         self.scrheight, self.fullwidth = self.scr.getmaxyx()
-        self.scrwidth = math.ceil((self.fullwidth - self.lnwidth) / (self.fmtwidth + 1))
+        self.scrwidth = math.ceil(
+            (self.fullwidth - self.styles.lnwidth) / (self.styles.width + 1)
+        )
         self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth)
         self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
 
     def draw_header(self):
-        alphas = utils.get_alphas(self.width)
+        alphas = get_alphas(self.width)
         fmt = self.styles.get_header_format_string(self.num_cols_in_screen)
         header = fmt.format(
             *alphas[self.screen.x : self.screen.x + self.num_cols_in_screen]
         )
-        self.scr.addstr(0, self.lnwidth, header, self.styles.c_header)
+        self.scr.addstr(0, self.styles.lnwidth, header, self.styles.c_header)
 
     def get_cell_style(self, row, col):
         coord = self.screen + Coordinate(col, row)
@@ -131,7 +129,7 @@ class Grid:
             for col in range(self.num_cols_in_screen):
                 self.scr.addstr(
                     row + 1,
-                    col * (self.fmtwidth + 1) + self.lnwidth,
+                    col * (self.styles.width + 1) + self.styles.lnwidth,
                     self.styles.format_cell(
                         self.as_arr[row + self.screen.y, col + self.screen.x],
                     ),
@@ -140,20 +138,14 @@ class Grid:
         self.scr.addstr(row + 2, 0, " " * self.fullwidth)
 
     def draw_sheets(self):
-        sheetPos = 0
+        sheetPosx = 0
         for i, sheet in enumerate(self.sheetNames):
             if i == self.sheetId:
-                self.scr.addstr(
-                    self.scrheight - 1,
-                    sheetPos,
-                    sheet,
-                    self.styles.c_sheet_selection,
-                )
+                style = self.styles.c_sheet_selection
             else:
-                self.scr.addstr(
-                    self.scrheight - 1, sheetPos, sheet, self.styles.c_sheets
-                )
-            sheetPos += len(sheet) + 1
+                style = self.styles.c_sheets
+            self.scr.addstr(self.scrheight - 1, sheetPosx, sheet, style)
+            sheetPosx += len(sheet) + 1
 
     def draw_footer(self, string=None):
         string = string or str(self.as_arr[self.cursor.y, self.cursor.x])

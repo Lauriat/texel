@@ -28,5 +28,5 @@ def get_alpha_iter():
             yield "".join(map(chr, ch))
 
 
-def matrix_to_string(mat):
+def arr2string(mat):
     return "\n".join(",".join(map(str, e)) for e in mat)
