@@ -1,11 +1,24 @@
 from setuptools import setup
 
+requirements = [
+    "pandas",
+    "pyperclip",
+    "numpy",
+]
+
+with open("README.md") as f:
+    long_description = f.read()
+
 setup(
     name="texel",
     packages=["texel"],
-    entry_points={"console_scripts": ["texel = texel.texel:main"]},
     version="0.0.1",
-    description="Spreadsheet CLI",
+    description="Command line interface for reading spreadsheets (xlsx, odf, csv etc.)",
+    long_description=long_description,
+    install_requires=requirements,
+    entry_points={"console_scripts": ["texel = texel.texel:main"]},
+    licence="MIT",
     author="Lauri Tuominen",
     author_email="lauri.a.tuominen@gmail.com",
+    url="https://github.com/lauriat/texel",
 )
