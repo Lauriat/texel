@@ -73,8 +73,8 @@ class Grid:
 
     def move_horizontal(self, direction: int):
         self.cursor.x = (self.cursor.x + direction) % self.width
-        if (self.cursor.x - self.screen.x) >= self.scrwidth - 2:
-            self.screen.x = self.cursor.x - self.scrwidth + 2
+        if (self.cursor.x - self.screen.x) >= self.scrwidth_cells - 2:
+            self.screen.x = self.cursor.x - self.scrwidth_cells + 2
         elif self.cursor.x < self.screen.x:
             self.screen.x = self.cursor.x
 
@@ -90,11 +90,11 @@ class Grid:
         self.init()
 
     def set_screen_variables(self):
-        self.scrheight, self.fullwidth = self.scr.getmaxyx()
-        self.scrwidth = math.ceil(
-            (self.fullwidth - self.styles.lnwidth) / (self.styles.width + 1)
+        self.scrheight, self.scrwidth = self.scr.getmaxyx()
+        self.scrwidth_cells = math.ceil(
+            (self.scrwidth - self.styles.lnwidth) / (self.styles.width + 1)
         )
-        self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth)
+        self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth_cells)
         self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
 
     def draw_header(self):
@@ -140,7 +140,7 @@ class Grid:
                     ),
                     self.get_cell_style(row, col),
                 )
-        self.scr.addstr(row + 2, 0, " " * self.fullwidth)
+        self.scr.addstr(row + 2, 0, " " * self.scrwidth)
 
     def draw_sheets(self):
         sheetPosx = 0
@@ -157,7 +157,7 @@ class Grid:
         self.scr.addstr(
             self.scrheight - 2,
             0,
-            self.styles.get_footer_format_string(self.fullwidth).format(string),
+            self.styles.get_footer_format_string(self.scrwidth).format(string),
             self.styles.c_footer,
         )
 
