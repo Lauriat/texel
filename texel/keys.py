@@ -3,18 +3,12 @@ import curses
 
 class Key:
     def __init__(self, *values):
-        self._values = values
+        self.values = values
         self._hash = hash(values)
         self._keyset = set(values)
 
     def __eq__(self, other):
-        if isinstance(other, Key):
-            return self._hash == other._hash
-        return other in self._keyset
-
-    def __iter__(self):
-        for key in self._values:
-            yield key
+        return self._hash == other._hash
 
     def __hash__(self):
         return self._hash
@@ -32,7 +26,7 @@ class Keys:
     LEFT = Key(curses.KEY_LEFT, ord("h"))
     RIGHT = Key(curses.KEY_RIGHT, ord("l"))
     ALL = [ESC, TAB, SHIFT_TAB, VISUAL, COPY, QUIT, UP, DOWN, LEFT, RIGHT]
-    _id_to_key = {id: key for key in ALL for id in key}
+    _id_to_key = {id: key for key in ALL for id in key.values}
 
     @staticmethod
     def to_key(key: int) -> Key:
