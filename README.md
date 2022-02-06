@@ -1,4 +1,4 @@
-## texel - Command line interface for reading spreadsheets.
+## texel - Command line interface for reading spreadsheets inside terminal.
 
 Sometimes, you have to deal with spreadsheets. These are sad times.
 Luckily there is texel!
