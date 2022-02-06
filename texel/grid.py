@@ -24,8 +24,8 @@ class Grid:
         self.init()
 
     def init(self):
-        self.cursor: Coordinate = Coordinate(0, 0)
-        self.screen: Coordinate = Coordinate(0, 0)
+        self.origin: Coordinate = Coordinate(0, 0)
+        self.selected: Coordinate = Coordinate(0, 0)
         self.as_arr: np.ndarray = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
         self.visual: Optional[Coordinate] = None
         self.heigth, self.width = self.as_arr.shape
@@ -61,32 +61,32 @@ class Grid:
         }
 
     def set_visual(self, reset=False):
-        self.visual = None if reset else Coordinate(self.cursor.x, self.cursor.y)
+        self.visual = None if reset else Coordinate(self.selected.x, self.selected.y)
 
     def copy(self):
         if self.visual is None:
-            utils.copy(self.as_arr[self.cursor.y, self.cursor.x])
+            utils.copy(self.as_arr[self.selected.y, self.selected.x])
         else:
-            ymin, ymax = sorted([self.cursor.y, self.visual.y])
-            xmin, xmax = sorted([self.cursor.x, self.visual.x])
+            ymin, ymax = sorted([self.selected.y, self.visual.y])
+            xmin, xmax = sorted([self.selected.x, self.visual.x])
             utils.copy(self.as_arr[ymin : ymax + 1, xmin : xmax + 1])
         self.visual = None
         self.draw()
         self.draw_footer("Copied")
 
     def move_horizontal(self, direction: int):
-        self.cursor.x = (self.cursor.x + direction) % self.width
-        if (self.cursor.x - self.screen.x) >= self.scrwidth_cells - 2:
-            self.screen.x = self.cursor.x - self.scrwidth_cells + 2
-        elif self.cursor.x < self.screen.x:
-            self.screen.x = self.cursor.x
+        self.selected.x = (self.selected.x + direction) % self.width
+        if (self.selected.x - self.origin.x) >= self.scrwidth_cells - 2:
+            self.origin.x = self.selected.x - self.scrwidth_cells + 2
+        elif self.selected.x < self.origin.x:
+            self.origin.x = self.selected.x
 
     def move_vertical(self, direction: int):
-        self.cursor.y = (self.cursor.y + direction) % self.heigth
-        if (self.cursor.y - self.screen.y) >= self.scrheight - 3:
-            self.screen.y = self.cursor.y - (self.scrheight - 3) + 1
-        elif self.cursor.y < self.screen.y:
-            self.screen.y = self.cursor.y
+        self.selected.y = (self.selected.y + direction) % self.heigth
+        if (self.selected.y - self.origin.y) >= self.scrheight - 3:
+            self.origin.y = self.selected.y - (self.scrheight - 3) + 1
+        elif self.selected.y < self.origin.y:
+            self.origin.y = self.selected.y
 
     def switch_sheet(self, direction: int):
         if len(self.sheetNames) > 1:
@@ -98,28 +98,30 @@ class Grid:
         self.scrwidth_cells = math.ceil(
             (self.scrwidth - self.styles.lnwidth) / (self.styles.width + 1)
         )
-        self.num_cols_in_screen = min(self.width - self.screen.x, self.scrwidth_cells)
-        self.num_rows_in_screen = min(self.heigth - self.screen.y, self.scrheight - 3)
+        self.num_cols_in_screen = min(self.width - self.origin.x, self.scrwidth_cells)
+        self.num_rows_in_screen = min(self.heigth - self.origin.y, self.scrheight - 3)
 
     def draw_header(self):
         alphas = utils.get_alphas(self.width)
         fmt = self.styles.get_header_format_string(self.num_cols_in_screen)
         header = fmt.format(
-            *alphas[self.screen.x : self.screen.x + self.num_cols_in_screen]
+            *alphas[self.origin.x : self.origin.x + self.num_cols_in_screen]
         )
         self.scr.addstr(0, self.styles.lnwidth, header, self.styles.c_header)
 
     def get_cell_style(self, row: int, col: int):
-        coord = self.screen + Coordinate(col, row)
+        coord = self.origin + Coordinate(col, row)
         if self.visual is not None:
             if (
-                coord.x >= min(self.cursor.x, self.visual.x)
-                and coord.x <= max(self.cursor.x, self.visual.x)
-                and coord.y >= min(self.cursor.y, self.visual.y)
-                and coord.y <= max(self.cursor.y, self.visual.y)
+                coord.x >= min(self.selected.x, self.visual.x)
+                and coord.x <= max(self.selected.x, self.visual.x)
+                and coord.y >= min(self.selected.y, self.visual.y)
+                and coord.y <= max(self.selected.y, self.visual.y)
             ):
+                if coord == self.selected:
+                    return self.styles.c_visual | curses.A_UNDERLINE
                 return self.styles.c_visual
-        if coord == self.cursor:
+        if coord == self.selected:
             return self.styles.c_selection
         return (
             curses.A_UNDERLINE
@@ -132,7 +134,7 @@ class Grid:
             self.scr.addstr(
                 row + 1,
                 0,
-                self.styles.lineno_fmt.format(str(row + self.screen.y + 1)),
+                self.styles.lineno_fmt.format(str(row + self.origin.y + 1)),
                 self.styles.c_lineno,
             )
             for col in range(self.num_cols_in_screen):
@@ -140,7 +142,7 @@ class Grid:
                     row + 1,
                     col * (self.styles.width + 1) + self.styles.lnwidth,
                     self.styles.format_cell(
-                        self.as_arr[row + self.screen.y, col + self.screen.x],
+                        self.as_arr[row + self.origin.y, col + self.origin.x],
                     ),
                     self.get_cell_style(row, col),
                 )
@@ -157,7 +159,7 @@ class Grid:
             sheetPosx += len(sheet) + 1
 
     def draw_footer(self, string=None):
-        string = string or str(self.as_arr[self.cursor.y, self.cursor.x])
+        string = string or str(self.as_arr[self.selected.y, self.selected.x])
         self.scr.addstr(
             self.scrheight - 2,
             0,
