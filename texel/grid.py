@@ -13,9 +13,9 @@ from . import utils
 
 class Grid:
     def __init__(
-        self, scr: curses.window, sheets: Dict[str, pd.DataFrame], styles: Styles
+        self, scr, sheets: Dict[str, pd.DataFrame], styles: Styles
     ):
-        self.scr: curses.window = scr
+        self.scr = scr
         self.sheets: Dict[str, pd.DataFrame] = sheets
         self.sheetId: int = 0
         self.sheetNames: List[str] = list(self.sheets.keys())
@@ -89,8 +89,9 @@ class Grid:
             self.screen.y = self.cursor.y
 
     def switch_sheet(self, direction: int):
-        self.sheetId = (self.sheetId + direction) % len(self.sheetNames)
-        self.init()
+        if len(self.sheetNames) > 1:
+            self.sheetId = (self.sheetId + direction) % len(self.sheetNames)
+            self.init()
 
     def set_screen_variables(self):
         self.scrheight, self.scrwidth = self.scr.getmaxyx()

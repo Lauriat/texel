@@ -1,7 +1,7 @@
 ## texel - Command line interface for reading spreadsheets inside terminal.
 
-Sometimes, you have to deal with spreadsheets. These are sad times.
-Luckily there is texel!
+Sometimes, you have to deal with spreadsheets. Those are sad times.
+Fortunately there is texel!
 
 Texel is a useful CLI for quickly reading spreadsheets and
 copying their contents to clipboard in CSV format.
