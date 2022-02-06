@@ -1,6 +1,7 @@
 from setuptools import setup
 
 requirements = [
+    "openpyxl",
     "pandas",
     "pyperclip",
     "numpy",
@@ -12,11 +13,12 @@ with open("README.md") as f:
 setup(
     name="texel",
     packages=["texel"],
-    version="0.0.1",
+    version="0.1",
     description="Command line interface for reading spreadsheets inside terminal.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=requirements,
+    python_requires='>=3',
     entry_points={"console_scripts": ["texel = texel.texel:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",
