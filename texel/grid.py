@@ -39,10 +39,13 @@ class Grid:
 
         return runnable
 
-    def on_press(self, key: int):
+    def handle_press(self, key: int) -> bool:
         key = Keys.to_key(key)
         if key in self.actions:
             self.actions[key]()
+        elif key == Keys.QUIT:
+            return False
+        return True
 
     def get_actions(self) -> Dict[Key, Callable]:
         return {

@@ -4,7 +4,6 @@ import curses
 from argparse import ArgumentParser
 
 from .grid import Grid
-from .keys import Keys
 from .styles import Styles
 from .utils import read_spreadsheet
 
@@ -15,10 +14,8 @@ def run(scr, sheets, args):
         sheets,
         Styles(args.cellwidth, args.precision),
     )
-    key = scr.getch()
-    while key != Keys.QUIT:
-        grid.on_press(key)
-        key = scr.getch()
+    while grid.handle_press(scr.getch()):
+        pass
 
 
 def main():
