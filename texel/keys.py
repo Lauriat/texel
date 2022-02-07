@@ -8,7 +8,9 @@ class Key:
         self._keyset = set(values)
 
     def __eq__(self, other):
-        return self._hash == other._hash
+        if isinstance(other, Key):
+            return self._hash == other._hash
+        return other in self._keyset
 
     def __hash__(self):
         return self._hash
