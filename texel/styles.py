@@ -53,8 +53,10 @@ class Styles:
     def get_header_format_string(self, num_cols: int) -> str:
         return ("{:" f"{self.width}" + "}" + self.separator) * num_cols
 
-    def get_footer_format_string(self, width: int) -> str:
-        return "{:>" + f"{width}" + "}"
+    def format_footer(self, string: str, width) -> str:
+        if len(string) > width:
+            string = string[: width - 3] + "..."
+        return ("{:>" + f"{width}" + "}").format(string)
 
     def format_cell(self, x) -> str:
         if isinstance(x, (float, np.floating)):

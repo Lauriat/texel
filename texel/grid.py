@@ -12,9 +12,7 @@ from . import utils
 
 
 class Grid:
-    def __init__(
-        self, scr, sheets: Dict[str, pd.DataFrame], styles: Styles
-    ):
+    def __init__(self, scr, sheets: Dict[str, pd.DataFrame], styles: Styles):
         self.scr = scr
         self.sheets: Dict[str, pd.DataFrame] = sheets
         self.sheetId: int = 0
@@ -163,7 +161,7 @@ class Grid:
         self.scr.addstr(
             self.scrheight - 2,
             0,
-            self.styles.get_footer_format_string(self.scrwidth).format(string),
+            self.styles.format_footer(string, self.scrwidth),
             self.styles.c_footer,
         )
 
