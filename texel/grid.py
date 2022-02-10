@@ -2,7 +2,6 @@ import curses
 import math
 
 import numpy as np
-import pandas as pd
 from typing import Callable, Dict, List, Optional
 
 from .coordinate import Coordinate
@@ -12,9 +11,9 @@ from . import utils
 
 
 class Grid:
-    def __init__(self, scr, sheets: Dict[str, pd.DataFrame], styles: Styles):
+    def __init__(self, scr, sheets: Dict[str, np.ndarray], styles: Styles):
         self.scr = scr
-        self.sheets: Dict[str, pd.DataFrame] = sheets
+        self.sheets: Dict[str, np.ndarray] = sheets
         self.sheetId: int = 0
         self.sheetNames: List[str] = list(self.sheets.keys())
         self.actions: Dict[Key, Callable] = self.get_actions()
@@ -24,9 +23,9 @@ class Grid:
     def init(self):
         self.origin: Coordinate = Coordinate(0, 0)
         self.selected: Coordinate = Coordinate(0, 0)
-        self.as_arr: np.ndarray = self.sheets[self.sheetNames[self.sheetId]].to_numpy()
+        self.array: np.ndarray = self.sheets[self.sheetNames[self.sheetId]]
         self.visual: Optional[Coordinate] = None
-        self.heigth, self.width = self.as_arr.shape
+        self.heigth, self.width = self.array.shape
         self.styles.init(self.heigth)
         self.draw()
 
@@ -39,10 +38,11 @@ class Grid:
 
     def handle_press(self, key: int) -> bool:
         key = Keys.to_key(key)
-        if key in self.actions:
-            self.actions[key]()
-        elif key == Keys.QUIT:
-            return False
+        if key:
+            if key in self.actions:
+                self.actions[key]()
+            elif key == Keys.QUIT:
+                return False
         return True
 
     def get_actions(self) -> Dict[Key, Callable]:
@@ -56,6 +56,7 @@ class Grid:
             Keys.VISUAL: self.redraw(self.set_visual),
             Keys.ESC: self.redraw(self.set_visual, reset=True),
             Keys.COPY: self.copy,
+            Keys.HELP: self.help,
         }
 
     def set_visual(self, reset=False):
@@ -63,14 +64,22 @@ class Grid:
 
     def copy(self):
         if self.visual is None:
-            utils.copy(self.as_arr[self.selected.y, self.selected.x])
+            utils.copy(self.array[self.selected.y, self.selected.x])
         else:
             ymin, ymax = sorted([self.selected.y, self.visual.y])
             xmin, xmax = sorted([self.selected.x, self.visual.x])
-            utils.copy(self.as_arr[ymin : ymax + 1, xmin : xmax + 1])
+            utils.copy(self.array[ymin : ymax + 1, xmin : xmax + 1])
         self.visual = None
         self.draw()
         self.draw_footer("Copied")
+
+    def help(self):
+        self.scr.clear()
+        self.scr.addstr(0, 0, "Help")
+        for i, string in enumerate(utils.HELP, 2):
+            if i >= self.scrheight:
+                return
+            self.scr.addstr(i, 1, string)
 
     def move_horizontal(self, direction: int):
         self.selected.x = (self.selected.x + direction) % self.width
@@ -140,7 +149,7 @@ class Grid:
                     row + 1,
                     col * (self.styles.width + 1) + self.styles.lnwidth,
                     self.styles.format_cell(
-                        self.as_arr[row + self.origin.y, col + self.origin.x],
+                        self.array[row + self.origin.y, col + self.origin.x],
                     ),
                     self.get_cell_style(row, col),
                 )
@@ -157,7 +166,7 @@ class Grid:
             sheetPosx += len(sheet) + 1
 
     def draw_footer(self, string=None):
-        string = string or str(self.as_arr[self.selected.y, self.selected.x])
+        string = string or str(self.array[self.selected.y, self.selected.x])
         self.scr.addstr(
             self.scrheight - 2,
             0,

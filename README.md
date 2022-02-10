@@ -34,6 +34,7 @@ optional arguments:
   - `v` - Visual/selection mode
   - `<ESC>` - Exit visual/selection mode
   - `c` / `y` - Copy selected cell(s)
+  - `?` - Help
   - `q` - Exit
 
 #### Supported file formats:

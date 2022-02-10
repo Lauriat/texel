@@ -8,9 +8,7 @@ class Key:
         self._keyset = set(values)
 
     def __eq__(self, other):
-        if isinstance(other, Key):
-            return self._hash == other._hash
-        return other in self._keyset
+        return self._hash == other._hash
 
     def __hash__(self):
         return self._hash
@@ -27,7 +25,8 @@ class Keys:
     DOWN = Key(curses.KEY_DOWN, ord("j"))
     LEFT = Key(curses.KEY_LEFT, ord("h"))
     RIGHT = Key(curses.KEY_RIGHT, ord("l"))
-    ALL = [ESC, TAB, SHIFT_TAB, VISUAL, COPY, QUIT, UP, DOWN, LEFT, RIGHT]
+    HELP = Key(ord("?"))
+    ALL = [ESC, TAB, SHIFT_TAB, VISUAL, COPY, QUIT, UP, DOWN, LEFT, RIGHT, HELP]
     _id_to_key = {id: key for key in ALL for id in key.values}
 
     @staticmethod
