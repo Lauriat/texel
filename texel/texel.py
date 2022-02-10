@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from .grid import Grid
 from .styles import Styles
-from .utils import read_spreadsheet
+from .utils import read_spreadsheet, InvalidFileException
 
 
 def run(scr, sheets, args):
@@ -30,7 +30,7 @@ def main():
         "--delimiter",
         help="Delimiter for csv files",
         metavar="DELIMITER",
-        default=None,
+        default=",",
     )
     parser.add_argument(
         "-c",
@@ -54,10 +54,20 @@ def main():
         metavar="FILLNA",
         default=None,
     )
+    parser.add_argument(
+        "--encoding",
+        help="Encoding for CSV files",
+        metavar="ENCODING",
+        default="utf-8",
+    )
     try:
         args = parser.parse_args()
-        sheets = read_spreadsheet(args.file, args.delimiter, args.fillna)
-    except TypeError:
+        sheets = read_spreadsheet(args.file, args.delimiter, args.fillna, args.encoding)
+    except InvalidFileException as e:
+        print(e)
+        exit()
+    except TypeError as e:
+        print(e)
         parser.print_usage()
         exit()
     except FileNotFoundError:
