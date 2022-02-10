@@ -10,10 +10,16 @@ from openpyxl import load_workbook as load_excel
 from odf.opendocument import load as load_odf
 from odf.table import Table, TableCell, TableRow
 
+try:
+    import pandas as pd
+    PANDAS = True
+except ModuleNotFoundError:
+    PANDAS = False
 
 EXCEL_FORMATS = ("xlsx", "xlsm", "xltx", "xltm")
 ODF_FORMATS = ("odf", "odt", "ods")
-SUPPORTED_FORMATS = ("csv", *ODF_FORMATS, *EXCEL_FORMATS)
+PANDAS_FORMATS = ("xls", "xlsb")
+SUPPORTED_FORMATS = ("csv", *ODF_FORMATS, *EXCEL_FORMATS, *PANDAS_FORMATS)
 
 
 class InvalidFileException(Exception):
@@ -34,12 +40,24 @@ class SpreadsheetReader:
             sheetdict = self._read_excel()
         elif self.ft in ODF_FORMATS:
             sheetdict = self._read_odf()
+        elif self.ft in PANDAS_FORMATS:
+            sheetdict = self._read_pandas()
         else:
             sheetdict = self._read_csv()
         if self.fillna is not None:
             for key in sheetdict:
                 sheetdict[key][sheetdict[key] == np.nan] = self.fillna
         return sheetdict
+
+    def _read_pandas(self):
+        if not PANDAS:
+            raise ImportError(
+                f"Optional dependency 'pandas' required for filetype '{self.ft}'\n"
+                + "Install with pip install pandas"
+            )
+        wb = pd.read_excel(self.filename, sheet_name=None, header=None)
+        wb = {key: val.to_numpy() for key, val in wb.items()}
+        return wb
 
     def _validate(self):
         self._check_exists()

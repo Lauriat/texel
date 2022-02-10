@@ -13,7 +13,7 @@ with open("README.md") as f:
 setup(
     name="texel",
     packages=["texel"],
-    version="0.2.0",
+    version="0.2.1",
     description="Command line interface for reading spreadsheets inside terminal.",
     long_description=long_description,
     long_description_content_type="text/markdown",

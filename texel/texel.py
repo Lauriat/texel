@@ -73,4 +73,7 @@ def main():
     except FileNotFoundError:
         print("Cannot find or open {}".format(args.file))
         exit()
+    except ImportError as e:
+        print(e)
+        exit()
     curses.wrapper(run, sheets, args)
