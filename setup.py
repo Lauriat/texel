@@ -2,7 +2,7 @@ from setuptools import setup
 
 requirements = [
     "openpyxl",
-    "pandas",
+    "odfpy",
     "pyperclip",
     "numpy",
 ]
@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=requirements,
-    python_requires='>=3',
+    python_requires=">=3",
     entry_points={"console_scripts": ["texel = texel.texel:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",

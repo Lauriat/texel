@@ -1,23 +1,27 @@
-from itertools import combinations, count
 from functools import lru_cache
-import pyperclip
-import pandas as pd
-import numpy as np
-
+from itertools import combinations, count
 from typing import Any, Dict, List, Generator
+
+from .reader import SpreadsheetReader, InvalidFileException
+
+import numpy as np
+import pyperclip
+
+HELP = (
+    "ARROWS / hjkl - Move",
+    "<TAB> <SHIFT-TAB> / n <SHIFT n> - Switch sheet",
+    "v - Visual/selection mode",
+    "<ESC> - Exit visual/selection mode",
+    "c / y - Copy selected cell(s)",
+    "q - Exit",
+    "? - Show this message",
+)
 
 
 def read_spreadsheet(
-    filename: str, delimiter: str, fillna: Any
-) -> Dict[str, pd.DataFrame]:
-    if filename.split(".")[-1] == "csv":
-        sheetdict = {filename: pd.read_csv(filename, delimiter=delimiter, header=None)}
-    else:
-        sheetdict = pd.read_excel(filename, sheet_name=None, header=None)
-    if fillna is not None:
-        for key in sheetdict:
-            sheetdict[key].fillna(fillna, inplace=True)
-    return sheetdict
+    filename: str, delimiter: str, fillna: Any, encoding: str
+) -> Dict[str, np.ndarray]:
+    return SpreadsheetReader(filename, delimiter, fillna, encoding).read()
 
 
 @lru_cache()
