@@ -39,9 +39,11 @@ optional arguments:
 
 #### Supported file formats:
   - xlsx
-  - xls
   - xlsm
+  - xltx
+  - xltm
   - xlsb
+  - xls
   - csv
   - odt
   - odf
