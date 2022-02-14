@@ -55,7 +55,7 @@ class Styles:
 
     def format_footer(self, string: str, width) -> str:
         if len(string) > width:
-            string = string[: width - 3] + "..."
+            string = string[: width - 1] + "…"
         return ("{:>" + f"{width}" + "}").format(string)
 
     def format_cell(self, x) -> str:
@@ -63,5 +63,5 @@ class Styles:
             x = round(x, self.precision)
         x = str(x)
         if len(x) > self.width:
-            x = x[: self.width - 3] + "..."
+            x = x[: self.width - 1] + "…"
         return self.cell_fmt.format(x)
